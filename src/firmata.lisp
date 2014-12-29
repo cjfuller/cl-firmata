@@ -9,10 +9,6 @@
 
 (in-package :firmata)
 
-(ql:quickload :cl-async)
-(ql:quickload :trivial-shell)
-
-
 (defun alist->hash-table (alist)
   (let ((h (make-hash-table)))
     (mapc (lambda (pair)
