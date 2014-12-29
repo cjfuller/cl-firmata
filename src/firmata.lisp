@@ -2,6 +2,7 @@
   (:use :cl)
   (:export #:initialize
            #:cmd
+           #:*commands*
            #:write-bytes
            #:set-pin-mode
            #:digital-write
@@ -18,29 +19,29 @@
 
 (defparameter *commands*
   (alist->hash-table
-   '((input . #x00)
-     (output . #x01)
-     (analog . #x02)
-     (pwm . #x03)
-     (servo . #x04)
-     (on . #x01)
-     (off . #x00)
-     (report-version . #xf9)
-     (system-reset . #xff)
-     (digital-message . #x90)
-     (analog-message . #xe0)
-     (report-analog . #xc0)
-     (report-digital . #xd0)
-     (pin-mode . #xf4)
-     (start-sysex . #xf0)
-     (end-sysex . #xf7)
-     (capability-query . #x6b)
-     (capability-response . #x6c)
-     (pin-state-query . #x6d)
-     (pin-state-response . #x6e)
-     (analog-mapping-query . #x69)
-     (analog-mapping-response . #x6a)
-     (firmware-query . #x79))))
+   '((:input . #x00)
+     (:output . #x01)
+     (:analog . #x02)
+     (:pwm . #x03)
+     (:servo . #x04)
+     (:on . #x01)
+     (:off . #x00)
+     (:report-version . #xf9)
+     (:system-reset . #xff)
+     (:digital-message . #x90)
+     (:analog-message . #xe0)
+     (:report-analog . #xc0)
+     (:report-digital . #xd0)
+     (:pin-mode . #xf4)
+     (:start-sysex . #xf0)
+     (:end-sysex . #xf7)
+     (:capability-query . #x6b)
+     (:capability-response . #x6c)
+     (:pin-state-query . #x6d)
+     (:pin-state-response . #x6e)
+     (:analog-mapping-query . #x69)
+     (:analog-mapping-response . #x6a)
+     (:firmware-query . #x79))))
 
 (defun cmd (sym)
   (gethash sym *commands*))
@@ -59,14 +60,14 @@
 
 (defun process-input (data)
   (cond
-    ((= (boole boole-and data #xf0) (cmd 'analog-message))
+    ((= (boole boole-and data #xf0) (cmd :analog-message))
      nil) ;; TODO
-    ((= (boole boole-and data #xf0) (cmd 'digital-message))
+    ((= (boole boole-and data #xf0) (cmd :digital-message))
      (let ((lsb (read-byte *firmata-dev*))
            (msb (read-byte *firmata-dev*))
            (port (boole boole-and data #x0f)))
        (setf (elt *digital-values* port) (boole boole-ior (ash msb 8) lsb))))
-    ((= data (cmd 'report-version))
+    ((= data (cmd :report-version))
      (format t "Firmata version: ~a.~a" (read-byte *firmata-dev*) (read-byte *firmata-dev*)))))
 
 (defun read-loop ()
@@ -83,21 +84,21 @@
 
 (defun set-pin-mode (pin mode)
   (write-bytes
-   (cmd 'pin-mode)
+   (cmd :pin-mode)
    pin
    (cmd mode)))
 
 (defun digital-write (pin value)
   (let* ((port (truncate pin 8))
          (pin (mod pin 8))
-         (new-value (if (= value (cmd 'off))
+         (new-value (if (= value (cmd :off))
                            (boole boole-and
                                   (elt *digital-values* port)
                                   (lognot (ash 1 pin)))
                            (boole boole-ior
                                   (elt *digital-values* port)
                                   (ash 1 pin)))))
-    (write-bytes (boole boole-ior (cmd 'digital-message) port)
+    (write-bytes (boole boole-ior (cmd :digital-message) port)
                  (boole boole-and new-value #x3f)
                  (ash new-value -7))))
 
@@ -127,8 +128,8 @@
 (defun test ()
   (with-firmata-io "/dev/cu.usbmodem1411"
     (cl-async:with-delay (0)
-     (write-bytes (cmd 'report-version))
-     (digital-write 13 (cmd 'on))
+     (write-bytes (cmd :report-version))
+     (digital-write 13 (cmd :on))
      (sleep 2)
-     (digital-write 13 (cmd 'off))
+     (digital-write 13 (cmd :off))
      (repl))))
